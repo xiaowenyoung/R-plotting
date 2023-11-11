@@ -1,0 +1,151 @@
+---
+title: "云雨图的绘制"
+author: "学理的小文"
+resource: "代码修改自知乎(侵删): https://zhuanlan.zhihu.com/p/595221070"
+output: html_document
+date: "2023-11-10"
+---
+
+```{r packages loading, message=FALSE, warning=FALSE}
+
+library(ggplot2)
+library(gghalves)
+library(ggpubr)
+library(ggnewscale)
+library(ggsignif)
+library(reshape2)
+library(RColorBrewer)
+library(grid)
+library(magrittr)
+library(dplyr)
+```
+
+```{r file loading, warning=FALSE}
+
+rawdata <- read.csv(file = "pp.csv",head=TRUE)  #读取工作目录下面的csv文件
+#右键Rmd文件，选择"set working directory"
+data_df <- rawdata  #再将导入数据赋值给新的数据框，保证rawdata不被污染
+
+data_df$congruency <- factor(data_df$congruency)  #将自变量转换为因子型
+data_df$stage <- factor(data_df$stage, levels = c("baseline", "adapt"))
+#如果对于自变量的排序有要求，需要手动指定levels
+
+head(data_df)  #读取前六行数据
+```
+
+```{r plotting}
+
+#前置工作，设定各种基础参数
+windowsFonts(N=windowsFont("Times New Roman"),A=windowsFont("Arial")) 
+
+p<-ggplot(data_df, aes(x = stage, y = RT, 
+                       fill = congruency,color = congruency)) +
+#设定x轴和y轴，同时设定图例，fill为填充，color为边框
+  
+  scale_y_continuous(limits = c(0.2,1.4),
+                     breaks = seq(from=0.2,to=1.4,by=0.2),
+                     expand = c(0, 0.1)) +
+  labs(x = "Task stage", y = "Reaction time(secs)") +
+#设定x轴和y轴的最小和最大值以及步长，expand函数用于在设定轴上创造额外的空间
+  
+  scale_colour_manual(values=c("#e5be79","#3e86b5"),name='congruency')+
+  scale_fill_manual(values=c("#e5be79","#3e86b5"),name='congruency')+
+#设定color和fill的颜色，此处为全局设定，但是后面可以用ggnewscale包进行局部设定
+  
+  theme(legend.position="right",
+        legend.title = element_text(size=10,colour='black',family="A"),
+        legend.text = element_text(size=10,colour='black',family="A"),
+        legend.key.size=unit(0.5,"cm"),
+        #图例的设定
+        
+        axis.ticks.length = unit(0.1, "cm"),  #轴上刻度长度的设定
+        axis.text.x = element_text(size=16,colour='black',family ="A"),
+        axis.text.y = element_text(size=16,colour='black',family="A"),
+        axis.title.x = element_text(size=20,colour='black',family="A"),
+        axis.title.y = element_text(size=20,colour='black',family="A"))
+        #轴标题以及轴刻度文字的设定
+p
+
+#自定义颜色
+#mycolor<-c("#e5be79","#3e86b5") 
+#p0 <- p+scale_color_manual(values=rev(mycolor)) +
+  #scale_fill_manual(values=rev(mycolor))
+#p0
+
+
+#先画一半小提琴图(geom_half_violin)，得到p1：
+#一半小提琴图的参数调整：
+#position：位置调整，这里将其向右水平移动0.1；
+#side：显示哪一侧， "I"代表左侧，"R"代表右侧，默认"I"；
+#adjust：调整带宽，这里设为1.2使宽带略变平滑；
+#trim：小提琴图尾部的数据修整，默认为"T",表示将尾部修整到数据范围；"F"表示不修剪尾部；
+p1<-p+geom_half_violin(position=position_nudge(x=0.1,y=0),
+                       side='R',adjust=1.2,trim=F,color=NA,alpha=0.8)
+p1
+
+
+
+#在半个小提琴图左侧加上散点图并进行调整，得到p2：
+p2<-p1+geom_point(aes
+                  (x = as.numeric(stage)-0.15,#散点位置向左平移0.15
+                   y = RT,
+                   color = congruency),
+                   position = position_jitter(width =0.03),
+                  size =1.0, shape =20)
+#调整散点，使取值相同的原重合散点分散开
+p2
+
+
+
+#在p4散点和二分之一小提琴图中间添加箱线图，得到p5：
+p3 <- p2 + new_scale_color()+    
+#使用函数创建新的scalecolor，需要放在绘制箱线图前面
+  
+  geom_boxplot(outlier.shape = NA, #隐藏离群点；
+               width =0.1,
+               alpha=0.7,
+               position = position_dodge(width = 0.15))+  #设定box间距离
+  scale_colour_manual(values=c("black","black"),name='congruency')+
+#此步局部设置box图的轮廓color为黑色，但是散点图的颜色不变
+  
+  stat_signif(annotations ="**",
+              y_position = 1.3,
+              xmin = 0.965,
+              xmax = 1.035,
+              size = NA,  #横线的大小，NA则为没有横线
+              tip_length = c(0,0),  #左右两边的竖线的长度
+              color="black",
+              textsize = 5)  #显著性标记的大小
+#设置显著性标记(此处为手动选择xy坐标位置进行标记)
+
+p3
+
+
+#去掉灰底, 去掉背景网格线, 去掉顶部和右侧框线
+p4 <- p3+theme_bw()+   #使用bw这个theme自动优化图形的美观性
+  theme(panel.grid=element_blank()) +
+  theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank())
+    
+###一些零碎的优化代码###
+    #axis.title.x = element_text(vjust = -1),
+    #axis.title.y = element_text(vjust = 5),
+#让x轴和y轴的轴标题距离轴刻度更远一些(具体原理尚不清晰???)
+
+    #plot.margin = margin(20,45,30,30),  
+#调整画布大小，四个参数分别为trbl(trouble, 上右下左)
+    #legend.position = c(1,0.9))  #调整图例的位置
+
+p4
+```
+
+```{r save the plot}
+
+ggsave(p4, filename = "pp.pdf", dpi = 600,
+       width=2800,height=2000,units = "px")
+#保存成pdf可以方便之后修改dpi信息(pdf储存的为矢量图)
+
+```
