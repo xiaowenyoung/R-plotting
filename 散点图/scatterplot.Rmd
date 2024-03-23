@@ -1,0 +1,71 @@
+---
+title: 散点图的绘制
+author: 学理的小文
+output: html_document
+date: "2023-11-20"
+---
+
+```{r packages loading, include=FALSE}
+
+library(quartets)
+library(ggplot2)
+
+```
+
+```{r file loading}
+
+#rawdata <- read.csv(file = "pp.csv",head=TRUE)
+#data_df <- rawdata
+
+data_df <- datasaurus_dozen[datasaurus_dozen$dataset == "dino", ]    #R包quartets内的一个数据
+head(data_df)
+
+```
+
+```{r plotting}
+
+#前置工作，设定各种基础参数
+windowsFonts(N=windowsFont("Times New Roman"),A=windowsFont("Arial")) 
+
+# Basic scatter plot.
+p1 <- ggplot(data_df, aes(x=x, y=y)) + 
+  geom_point(color="#3e86b5", size = 2)+
+  scale_x_continuous(limits = c(20,100),
+                     breaks = seq(from=20,to=100,by=20),
+                     expand = c(0, 0.1)) +
+  scale_y_continuous(limits = c(0,100),
+                     breaks = seq(from=0,to=100,by=25),
+                     expand = c(0.1, 0.1)) +
+  labs(x = "X", y = "Y")
+
+p1
+ 
+
+
+# linear trend + confidence interval
+p2 <- p1 + 
+  geom_smooth(method=lm, color="#336485", fill="#95a77e",
+              formula = y ~ x, se=TRUE)
+
+p2
+
+
+#去掉灰底, 去掉背景网格线, 去掉顶部和右侧框线
+p3 <- p2+theme_bw()+   #使用bw这个theme自动优化图形的美观性
+  theme(panel.grid=element_blank()) +
+  theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank())
+
+p3
+```
+
+```{r save the plot}
+
+ggsave(p3, filename = "scatterplot.pdf", dpi = 600,
+       width=2800,height=2000,units = "px")
+#保存成pdf可以方便之后修改dpi信息(pdf储存的为矢量图)
+
+```

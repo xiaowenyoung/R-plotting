@@ -1,0 +1,105 @@
+---
+title: "boxplot"
+author: "学理的小文"
+date: "2023-12-28"
+output: html_document
+---
+
+```{r packages loading, message=FALSE, warning=FALSE}
+
+library(ggplot2)
+library(ggnewscale)
+library(ggpubr)
+library(ggsignif)
+```
+
+```{r file loading}
+
+rawdata <- read.csv(file = "pp.csv",head=TRUE)  #读取工作目录下面的csv文件
+#右键Rmd文件，选择"set working directory"
+data_df <- rawdata  #再将导入数据赋值给新的数据框，保证rawdata不被污染
+
+data_df$congruency <- factor(data_df$congruency)  #将自变量转换为因子型
+data_df$stage <- factor(data_df$stage, levels = c("baseline", "adapt"))
+#如果对于自变量的排序有要求，需要手动指定levels
+
+head(data_df)  #读取前六行数据
+```
+
+```{r plotting}
+
+#前置工作，设定各种基础参数
+windowsFonts(N=windowsFont("Times New Roman"),A=windowsFont("Arial")) 
+
+p<-ggplot(data_df, aes(x = stage, y = RT, 
+                       fill = congruency,color = congruency)) +
+#设定x轴和y轴，同时设定图例，fill为填充，color为边框
+  
+  scale_y_continuous(limits = c(0.2,1.4),
+                     breaks = seq(from=0.2,to=1.4,by=0.2),
+                     expand = c(0, 0.1)) +
+  labs(x = "Task stage", y = "Reaction time(secs)") +
+#设定x轴和y轴的最小和最大值以及步长，expand函数用于在设定轴上创造额外的空间
+  
+  scale_colour_manual(values=c("#f84638","#4745ff"),name='congruency')+
+  scale_fill_manual(values=c("#f84638","#4745ff"),name='congruency')+
+#设定color和fill的颜色，此处为全局设定，但是后面可以用ggnewscale包进行局部设定
+  
+  theme(legend.position="right",
+        legend.title = element_text(size=10,colour='black',family="A"),
+        legend.text = element_text(size=10,colour='black',family="A"),
+        legend.key.size=unit(0.5,"cm"),
+        #图例的设定
+        
+        axis.ticks.length = unit(0.1, "cm"),  #轴上刻度长度的设定
+        axis.text.x = element_text(size=16,colour='black',family ="A"),
+        axis.text.y = element_text(size=16,colour='black',family="A"),
+        axis.title.x = element_text(size=20,colour='black',family="A"),
+        axis.title.y = element_text(size=20,colour='black',family="A"))
+        #轴标题以及轴刻度文字的设定
+p
+
+
+p1<-p + new_scale_color() + 
+  geom_boxplot(outlier.shape = NA,
+               alpha=0.7,
+               #position = position_dodge(width = 1.0005),
+               # 是不是带有中位线的“腰”
+               notch=TRUE,
+               notchwidth = 0.8,
+               # custom outliers
+               #outlier.colour="red",
+               #outlier.fill="red",
+               #outlier.size=3
+               )+
+  scale_colour_manual(values=c("black","black"),
+                                   name='congruency')+
+  stat_compare_means(label =  "p.signif", 
+                     label.y = 1.4,
+                     hide.ns = FALSE)+
+  stat_summary(fun.y = "mean", geom = "point",
+               aes(group=congruency),
+               position=position_dodge(0.75),
+               shape = 21, size = 3, 
+               colour = "black",fill = "white")
+
+p1
+
+#去掉灰底, 去掉背景网格线, 去掉顶部和右侧框线
+p2 <- p1+theme_bw()+   #使用bw这个theme自动优化图形的美观性
+  theme(panel.grid=element_blank()) +
+  theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank())
+
+p2
+```
+```{r save the plot}
+
+ggsave(p2, filename = "pp.pdf", dpi = 500,
+       width=2800,height=2000,units = "px")
+#保存成pdf可以方便之后修改dpi信息(pdf储存的为矢量图)
+
+```
